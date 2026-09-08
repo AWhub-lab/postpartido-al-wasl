@@ -64,9 +64,9 @@ UI_TEXT: dict[str, dict[str, str]] = {
     "season_label": {"es": "Temporada", "en": "Season", "ar": "الموسم"},
     "all_seasons": {"es": "Todas las temporadas", "en": "All seasons", "ar": "كل المواسم"},
     "matches_found": {
-        "es": "{n} partidos encontrados. Los datos se refrescan solos cada 10 minutos, o pulsa “Refrescar”.",
-        "en": "{n} matches found. Data refreshes automatically every 10 minutes, or press “Refresh”.",
-        "ar": "تم العثور على {n} مباراة. يتم تحديث البيانات تلقائياً كل 10 دقائق، أو اضغط “تحديث”.",
+        "es": "{n} partidos encontrados. Los datos se refrescan solos cada 30 minutos, o pulsa “Refrescar”.",
+        "en": "{n} matches found. Data refreshes automatically every 30 minutes, or press “Refresh”.",
+        "ar": "تم العثور على {n} مباراة. يتم تحديث البيانات تلقائياً كل 30 دقيقة، أو اضغط “تحديث”.",
     },
     "no_matches": {
         "es": "No se encontraron partidos del Al-Wasl.",
@@ -402,7 +402,7 @@ def _fetch_iteration_matches(client: ImpectClient, iteration: dict[str, Any]) ->
     return iteration, hits
 
 
-@st.cache_data(ttl=600, show_spinner=False)
+@st.cache_data(ttl=1800, show_spinner=False)
 def _load_al_wasl_matches(_cache_key: int) -> list[dict[str, Any]]:
     client = _get_client()
     iterations = client.get_iterations()
@@ -410,9 +410,10 @@ def _load_al_wasl_matches(_cache_key: int) -> list[dict[str, Any]]:
     # The account has access to hundreds of competitions worldwide; Al-Wasl only
     # plays in a handful of them, but we don't know which ahead of time, so every
     # iteration's match list must be checked. Fetching them concurrently turns a
-    # ~1-2 minute sequential scan into a few seconds.
+    # ~1-2 minute sequential scan into a few seconds. Kept modest (not higher) to
+    # avoid CPU throttling on Streamlit Community Cloud's free-tier containers.
     hits_by_iteration: list[tuple[dict[str, Any], list[dict[str, Any]]]] = []
-    with ThreadPoolExecutor(max_workers=24) as executor:
+    with ThreadPoolExecutor(max_workers=8) as executor:
         futures = [executor.submit(_fetch_iteration_matches, client, iteration) for iteration in iterations]
         for future in as_completed(futures):
             iteration, hits = future.result()
