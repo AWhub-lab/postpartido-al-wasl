@@ -1,0 +1,15 @@
+.venv/
+__pycache__/
+.DS_Store
+.env
+data/
+reports/
+.streamlit/secrets.toml
+assets/crests/
+
+# No pertenecen a este proyecto (seguimiento de ofertas de trabajo / mailchimp);
+# se dejan en disco por si hacen falta en otro sitio, pero nunca se suben aqui.
+scripts/
+
+# Notebook antiguo con credenciales de terceros incrustadas en el codigo.
+PassingNetwork_Positions_NewVersion.ipynb
