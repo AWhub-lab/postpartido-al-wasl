@@ -13,3 +13,7 @@ scripts/
 
 # Notebook antiguo con credenciales de terceros incrustadas en el codigo.
 PassingNetwork_Positions_NewVersion.ipynb
+
+# Paquete de datos de la app «Carrera por el título» (se sube a Drive, no a Git)
+dist/
+.cloudsim/

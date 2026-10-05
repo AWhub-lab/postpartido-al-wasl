@@ -7,3 +7,5 @@ numpy==2.5.2
 reportlab==5.0.0
 Pillow==12.3.0
 streamlit==1.63.0
+altair==6.2.2
+google-auth==2.60.0
