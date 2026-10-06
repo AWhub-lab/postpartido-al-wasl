@@ -25,7 +25,7 @@ from .title_race_views import (
     SQ_FOCUS, sq_lines, pv_method, pv_table, pv_reference_table,
 )
 from .market import refresh_market_tm, squad_breakdown
-from .squad_quality import load_profiles, player_value, season_squads, winter_arrivals
+from .squad_quality import impect_minutes, load_profiles, player_value, season_squads, winter_arrivals
 
 METHODOLOGY = '''### Detalle técnico
 **Fuente:** IMPECT Customer API: `/iterations`, `/iterations/{id}/matches`, `/iterations/{id}/squads`
@@ -671,7 +671,7 @@ def _squads_tab(root, datasets, current, squads, ids):
     teams_s = sorted(set(pv[pv.season == pv_season].id), key=lambda i: (i not in SQ_FOCUS, SQ_FOCUS.index(i) if i in SQ_FOCUS else 0, name(squads_all[i])))
     pv_team_id = f2.selectbox('Equipo', teams_s, index=teams_s.index(WASL) if WASL in teams_s else 0,
                               format_func=lambda i: name(squads_all[i]), key='pv_team')
-    only = f3.toggle('Solo jugadores con minutos', value=True, key='pv_only')
+    only = f3.toggle('Solo jugadores con minutos', value=False, key='pv_only')
     view = pv[(pv.season == pv_season) & (pv.id == pv_team_id)]
     if only:
         view = view[view.minutes > 0]
@@ -698,7 +698,8 @@ def _player_value(path: str, mtime: float, series: str, mode: str = 'general'):
     path = Path(path)
     profiles = load_profiles(path.parent/'player_charts')
     arrivals = winter_arrivals(path.parents[1]/'title_race')
-    return player_value(path, None if profiles else (Path(series) if series else None), profiles=profiles, arrivals=arrivals, mode=mode)
+    return player_value(path, None if profiles else (Path(series) if series else None), profiles=profiles, arrivals=arrivals, mode=mode,
+                        minutes=impect_minutes(path.parents[1]/'title_race'))
 
 
 def _pv_league_explainer(played_pv, squads_all):

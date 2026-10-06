@@ -205,7 +205,7 @@ def _season_trend(points, y, now):
 
 
 def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, profiles: dict | None = None,
-                 arrivals: dict | None = None, current_season='2026/27', mode='general'):
+                 arrivals: dict | None = None, current_season='2026/27', mode='general', minutes: dict | None = None):
     """PLAYER VALUE AVG per player and season.
 
     PV = 0.40·pct(ELO) + 0.10·pct(ELO trend) + 0.40·pct(value) + 0.10·pct(value trend),
@@ -274,11 +274,14 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
             by = None
         out.append({'season': r['season'], 'year': y, 'team': r['team'], 'id': sid,
                     'player_id': pid, 'player': r['player'], 'pos': POSITIONS.get(r.get('position')), 'cohort': _cohort(by),
-                    'minutes': _num(r.get('minutes')) or 0, 'elo': elo, 'value': value, 'source': source, 'winter': winter,
+                    'minutes': max([_num(r.get('minutes')) or 0] + [m for t, m in (minutes or {}).get((r['season'], sid), [])
+                                                                     if same_player(r['player'], t)]),
+                    'elo': elo, 'value': value, 'source': source, 'winter': winter,
                     'elo_trend': _season_trend(s_elo, y, elo) if mode == 'media' else _pct_change(s_elo, ty, window),
                     'value_trend': _season_trend(s_val, y, value) if mode == 'media' else _pct_change(s_val, ty, window)})
     df = pd.DataFrame(out)
-    df = df[df.pos.notna()]
+    no_pos = df.pos.isna()          # BeSoccer without position: listed, but no PV (no peer group)
+    df['pos'] = df.pos.fillna('?')
     parts = list(PV_WEIGHTS)
     for scope, keys in (('league', ['season', 'cohort', 'pos']), ('team', ['season', 'team', 'pos'])):
         g = df.groupby(keys, dropna=False)
@@ -286,6 +289,7 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
         num = sum(pct[p].fillna(0)*w for p, w in PV_WEIGHTS.items())
         den = sum(pct[p].notna()*w for p, w in PV_WEIGHTS.items())
         df[f'pv_{scope}'] = (num/den.replace(0, np.nan)).round(1)
+    df.loc[no_pos, ['pv_league', 'pv_team']] = np.nan
     df['pv_avg'] = ((df.pv_league + df.pv_team)/2).round(1)
     df['incompleto'] = df[parts].isna().any(axis=1)
     return df
@@ -327,7 +331,7 @@ def winter_arrivals(folder: Path):
         app, pl = folder/'tm'/f'appearances_{it}.json', folder/'tm'/f'players_{it}.json'
         if not app.exists() or not pl.exists():
             continue
-        names = {p['id']: _norm(f"{p.get('commonname') or ''} {p.get('lastname') or ''}") for p in json.loads(pl.read_text())}
+        names = {p['id']: _norm(f"{p.get('commonname') or ''} {p.get('firstname') or ''} {p.get('lastname') or ''}") for p in json.loads(pl.read_text())}
         start_year = 2000 + int(season[:2]) if len(season) == 7 and season[2] == '/' else int(season[:4])
         for key, e in json.loads(app.read_text()).items():
             if key.startswith('_'):
@@ -338,6 +342,43 @@ def winter_arrivals(folder: Path):
     return out
 
 
+def _ordered_tokens(name):
+    text = unicodedata.normalize('NFKD', name or '').encode('ascii', 'ignore').decode().lower()
+    return re.sub(r'[^a-z ]', ' ', text).split()
+
+
+def same_player(besoccer_name, impect_tokens):
+    """Strict name match: the surname must appear, and the first name too (or its initial if abbreviated).
+
+    'C. Puertas' ↔ 'Cameron Puertas' yes; 'Abdelrahman Saleh' ↔ 'Ali Saleh' no.
+    """
+    parts = _ordered_tokens(besoccer_name)
+    if not parts or not impect_tokens:
+        return False
+    if len(parts) == 1:
+        return parts[0] in impect_tokens
+    first, last = parts[0], parts[-1]
+    if last not in impect_tokens:
+        return False
+    if len(first) == 1:
+        return any(t.startswith(first) for t in impect_tokens if t != last)
+    return first in impect_tokens
+
+
 def is_winter_arrival(arrivals, season, sid, name):
-    tokens = _norm(name)
-    return any(tokens & t for t in arrivals.get((season, sid), []))
+    return any(same_player(name, t) for t in arrivals.get((season, sid), []))
+
+
+def impect_minutes(folder: Path):
+    """{(season, impect squad id): [(name tokens, minutes)]} from IMPECT (more up to date than BeSoccer)."""
+    seasons = {'1082': '2024/25', '1499': '2025/26', '2192': '2026/27'}
+    out = {}
+    for it, season in seasons.items():
+        ro, pl = folder/'tm'/f'roster_{it}.json', folder/'tm'/f'players_{it}.json'
+        if not ro.exists() or not pl.exists():
+            continue
+        names = {p['id']: _norm(f"{p.get('commonname') or ''} {p.get('firstname') or ''} {p.get('lastname') or ''}")
+                 for p in json.loads(pl.read_text())}
+        for sid, players in json.loads(ro.read_text()).items():
+            out[(season, int(sid))] = [(names.get(p['impect'], set()), p['minutes']) for p in players]
+    return out

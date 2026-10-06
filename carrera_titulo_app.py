@@ -24,7 +24,11 @@ sys.path.insert(0, str(ROOT/'src'))
 
 import streamlit as st  # noqa: E402
 
-st.set_page_config(page_title='Carrera por el título · Al Wasl', page_icon='🏆', layout='wide')
+st.set_page_config(page_title='Road to the title · Al Wasl', page_icon='🏆', layout='wide')
+
+from postmatch_impect import i18n  # noqa: E402
+
+i18n.install()
 
 from postmatch_impect.title_race_data import sync_from_drive  # noqa: E402
 from postmatch_impect.title_race_ui import render_title_race  # noqa: E402
@@ -40,6 +44,11 @@ def _secret(name, default=None):
 def _logo():
     p = ROOT/'assets'/'al_wasl_logo.png'
     return f'<img src="data:image/png;base64,{base64.b64encode(p.read_bytes()).decode()}" style="width:64px">' if p.exists() else ''
+
+
+def top_bar():
+    _, right = st.columns([6, 1])
+    i18n.language_selector(right)
 
 
 def login() -> bool:
@@ -76,9 +85,10 @@ def load_data(_stamp: int):
     return {'source': 'drive', **sync_from_drive(ROOT, dict(sa), folder)}
 
 
+top_bar()
 if login():
     try:
-        with st.spinner('Cargando datos…'):
+        with st.spinner(i18n.tr('Cargando datos…')):
             info = load_data(int(datetime.now().timestamp() // 600))
     except Exception as exc:
         st.error(f'No se pudieron descargar los datos de Google Drive: {exc}')

@@ -1190,7 +1190,7 @@ def pv_table(df):
         return f'<span class="{cls}">{v:+.0f}{unit}</span>' if unit == '%' else f'<span class="{cls}">{v:+.1f}{unit}</span>'
     body = ''.join(
         f'<tr><td></td><td style="text-align:left"><b>{esc(r.player)}</b>{" <span title=\'Fichaje de invierno: datos de su llegada\'>❄️</span>" if getattr(r, "winter", False) else ""}{" <span class=tr-muted>◌</span>" if r.incompleto else ""}</td>'
-        f'<td>{r.pos}</td><td class="opt">{esc(r.cohort or "–")}</td><td class="opt">{r.minutes:.0f}</td>'
+        f'<td>{r.pos}</td><td class="opt">{esc(r.cohort or "–")}</td><td class="opt">{f"{r.minutes:.0f}" if r.minutes > 0 else "<span class=tr-muted>sin minutos</span>"}</td>'
         f'<td>{"–" if r.elo != r.elo else f"{r.elo:.0f}"}</td><td class="opt">{trend(r.elo_trend, "%")}</td>'
         f'<td>{"–" if r.value != r.value else f"{r.value/1e6:.1f}"}</td><td class="opt">{trend(r.value_trend, "%")}</td>'
         f'<td>{pill(r.pv_league)}</td><td>{pill(r.pv_team)}</td><td>{pill(r.pv_avg)}</td></tr>'
@@ -1199,7 +1199,7 @@ def pv_table(df):
        '<th>ELO</th><th class="opt" title="% de cambio en los últimos 3 años">Tend. ELO</th><th>Valor M€</th><th class="opt" title="% de cambio en los últimos 3 años">Tend. valor</th>'
        '<th title="Percentil frente a su cohorte y posición en la liga">PV LEAGUE</th><th title="Percentil frente a su club y posición">PV TEAM</th>'
        '<th>PV AVG</th></tr>' + body + '</table>'
-       '<div class="tr-muted">Verde ≥ 75 · amarillo 50–75. Tendencias: % de cambio en los últimos 3 años (gráfica de BeSoccer). ❄️ = fichaje de invierno (datos de su llegada). ◌ = falta algún dato (pesos reescalados).</div></div>')
+       '<div class="tr-muted">Toda la plantilla de BeSoccer de esa temporada; minutos de IMPECT cuando están disponibles (van al día), si no de BeSoccer. Verde ≥ 75 · amarillo 50–75. Tendencias: % de cambio en los últimos 3 años (gráfica de BeSoccer). ❄️ = fichaje de invierno (datos de su llegada). ◌ = falta algún dato (pesos reescalados).</div></div>')
 
 
 def pv_reference_table(pv, reference):
