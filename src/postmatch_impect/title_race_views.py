@@ -11,6 +11,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from .i18n import t
 from .title_race import poisson_outcomes, score
 
 WASL, JAZIRA, AIN = 2033, 2122, 2047
@@ -629,7 +630,7 @@ def fixture_list(root, fixtures, squads, sid):
         items.append(
             f'<div class="tr-fixture" style="--c:{color(rival["id"]) if direct else "#E3E6EB"}">'
             f'<div class="meta">{esc(meta)}<br>{"🏠 Casa" if p["venue"] == "En casa" else "✈️ Fuera"}</div>'
-            f'<div class="vs">{crest(root, rival, 30)}<span>{"vs " if p["venue"] == "En casa" else "en "}{esc(name(rival))}'
+            f'<div class="vs">{crest(root, rival, 30)}<span>{"vs " if p["venue"] == "En casa" else t("en ", "at ")}{esc(name(rival))}'
             f'{" · <b style=color:#C8102E>duelo directo</b>" if direct else ""}</span></div>'
             f'<div class="tr-stack"><span style="width:{p["win"]}%;background:{WIN}">{p["win"]:.0f}</span>'
             f'<span style="width:{p["draw"]}%;background:{DRAW}">{p["draw"]:.0f}</span>'

@@ -25,6 +25,7 @@ from .title_race_views import (
     SQ_FOCUS, sq_lines, pv_method, pv_table, pv_reference_table,
 )
 from .market import refresh_market_tm, squad_breakdown
+from .i18n import t
 from .squad_quality import impect_minutes, load_profiles, player_value, season_squads, winter_arrivals
 
 METHODOLOGY = '''### Detalle técnico
@@ -635,8 +636,8 @@ def _squads_tab(root, datasets, current, squads, ids):
         kpi_tiles([
             (f"{w_now['elo_p75']:.0f}", f'ELO P75 Al Wasl {last[2:]}', f"{w_now['elo_p75']-w_first['elo_p75']:+.0f} desde {seasons[0][2:]}"),
             (f"{w_now['value_p75']/1e6:.1f} M€", f'Valor P75 Al Wasl {last[2:]}', f"{w_now['value_p75']/w_first['value_p75']-1:+.0%} desde {seasons[0][2:]}"),
-            (f"{rank('elo_p75')}º", 'Puesto en ELO P75', f'de {sum(1 for r in rows if r["season"] == last)} equipos'),
-            (f"{rank('value_p75')}º", 'Puesto en valor P75', f'de {sum(1 for r in rows if r["season"] == last)} equipos'),
+            (f"{rank('elo_p75')}º", 'Puesto en ELO P75', t(f'de {sum(1 for r in rows if r["season"] == last)} equipos', f'of {sum(1 for r in rows if r["season"] == last)} teams')),
+            (f"{rank('value_p75')}º", 'Puesto en valor P75', t(f'de {sum(1 for r in rows if r["season"] == last)} equipos', f'of {sum(1 for r in rows if r["season"] == last)} teams')),
         ])
     current_ids = [i for i in squads if (last, i) in by]
     c1, c2 = st.columns(2, gap='large')
@@ -679,7 +680,7 @@ def _squads_tab(root, datasets, current, squads, ids):
     ref = _read_json(path.parent/'pv_reference_colleague.json')
     if ref:
         section('Control de calidad', 'Nuestro PV frente al informe del compañero',
-                f'Mismo método, calculado de forma independiente ({model.lower()}). Su informe sigue el modelo general.')
+                f'Mismo método, calculado de forma independiente ({model}). Su informe sigue el modelo general.')
         pv_reference_table(pv, ref)
 
 

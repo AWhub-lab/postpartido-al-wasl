@@ -278,7 +278,6 @@
 "la temporada completa; si falta un año, se usa el que haya. Tendencia: la temporada frente a la media de <b>dos temporadas antes</b> ": "the full season; if one year is missing, the available one is used. Trend: the season vs the average of <b>two seasons earlier</b> ",
 "<br><span class=\"tr-muted\">En los dos modelos: la temporada en curso (26/27) usa el ELO y el valor de hoy de la ficha (aún no existe 2027) y los ": "<br><span class=\"tr-muted\">In both models: the ongoing season (26/27) uses today's ELO and value from the profile (2027 does not exist yet) and ",
 "fichajes de invierno ❄️ usan los datos del año en que llegaron (Borja 25/26: 4,47 M€), no la media con su club anterior.</span></div>": "winter signings ❄️ use the data from the year they arrived (Borja 25/26: €4.47M), not the average with their previous club.</span></div>",
-"Con": "With",
 "Plantillas de la liga": "League squads",
 "º en ELO · ": "º in ELO · ",
 "º en valor": "º in value",
@@ -295,7 +294,6 @@
 "Valores vacíos en BeSoccer se dejan vacíos (no se inventan).</span></div>": "Values missing in BeSoccer are left empty (not invented).</span></div>",
 "Valor P75 Al Wasl ": "P75 value Al Wasl ",
 "Puesto en ELO P75": "Rank in ELO P75",
-"de ": "of ",
 " equipos": " teams",
 "Puesto en valor P75": "Rank in value P75",
 "P75 del ELO de la plantilla": "Squad ELO P75",
@@ -418,7 +416,6 @@
 "Sin fecha": "No date",
 "🏠 Casa": "🏠 Home",
 "✈️ Fuera": "✈️ Away",
-"en ": "at ",
 "<div class=\"tr\"><div class=\"tr-legend\"><span><i style=\"background:#1E8E5A\"></i>Victoria %</span><span><i style=\"background:#8B97A8\"></i>Empate %</span>": "<div class=\"tr\"><div class=\"tr-legend\"><span><i style=\"background:#1E8E5A\"></i>Win %</span><span><i style=\"background:#8B97A8\"></i>Draw %</span>",
 "<span><i style=\"background:#D64545\"></i>Derrota %</span></div>": "<span><i style=\"background:#D64545\"></i>Loss %</span></div>",
 "<div class=\"tr-step\"><span class=\"n\">01</span><small>Datos</small><b>Lo que pasa en el campo</b>": "<div class=\"tr-step\"><span class=\"n\">01</span><small>Data</small><b>What happens on the pitch</b>",
@@ -693,5 +690,7 @@
 "ISR · modelo principal": "ISR · main model",
 "ISR + valor de mercado": "ISR + market value",
 "Informe del compañero (Álvaro López)": "Colleague's report (Álvaro López)",
-"recibido el": "received on"
+"recibido el": "received on",
+" puntos del líder.": " points behind the leader.",
+" punto del líder.": " point behind the leader."
 }
