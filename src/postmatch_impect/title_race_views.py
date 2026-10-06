@@ -1153,7 +1153,7 @@ def sq_lines(rows, squads_all, root, value_fn, ytitle, fmt='.0f', ids=SQ_FOCUS, 
     st.altair_chart(style_chart(alt.layer(others, focus, ends), height), width='stretch')
 
 
-def pv_method(share_incomplete, mode='general'):
+def pv_method(share_incomplete, mode='general', reference='todos'):
     md('<div class="tr tr-callout" style="line-height:1.7"><b>PLAYER VALUE AVG · qué mide.</b> Cuánto vale un jugador frente a sus pares, '
        'en dos lecturas que se promedian: la liga y su propio club. Escala 0–100.<br>'
        '<b>Entradas por jugador y temporada</b> (BeSoccer): ELO y valor de mercado de esa temporada; <b>tendencia</b> de ELO y de valor '
@@ -1169,20 +1169,51 @@ def pv_method(share_incomplete, mode='general'):
        '<span class="tr-muted">Ojo al leerlo: los percentiles dependen del grupo (si entra o sale alguien, cambian los demás). '
        f'Si falta algún dato (sin valor publicado o sin años previos para la tendencia, {share_incomplete:.0%} de los casos) se calcula con '
        'el resto de piezas, reescalando los pesos, y se marca con ◌. Se añade la cohorte ≤1991, que el método original no tenía y agrupa al 14% de '
-       'jugadores. No hay entradas manuales: todo es BeSoccer.<br>'
+       'jugadores. Todo es BeSoccer salvo dos correcciones acordadas con el club: Borja 25/26 con 4,5 M€ (su valor al llegar) e Irala excluido (su ficha da un valor que no cuadra con su gráfica).<br>'
        '<b>Dato del momento:</b> el ELO y el valor son los del jugador mientras está en el club. En la temporada actual, los de su ficha de BeSoccer hoy '
        '(los mismos para todos los equipos). Los fichajes de invierno (❄️, primer partido después del 1 de enero según IMPECT) usan sus datos del año en que '
-       'llegaron, no los de antes (p. ej. Borja 25/26: 4,5 M€ al llegar en 2026, no los 11 M€ de 2025).</span></div>')
+       'llegaron, no los de antes (p. ej. Borja 25/26: 4,5 M€ al llegar en 2026, no los 11 M€ de 2025).</span>'
+       + (t('<br><b>Regla ELO 50 (activa): con quién se compara.</b> Solo cuentan como referencia los jugadores que juegan: '
+            '<b>todos los de ELO ≥ 50</b>, hayan jugado o no (así cuentan los fichajes que aún no han debutado y los lesionados), '
+            'y los de <b>ELO &lt; 50 solo si han jugado al menos 1 minuto</b> esa temporada. '
+            'Así los canteranos que no juegan no inflan ni hunden la nota de los demás.<br>'
+            '· <b>PV TEAM</b>: frente a sus compañeros de club y misma posición de esa temporada que cumplen la regla.<br>'
+            '· <b>PV LEAGUE</b>: frente a los jugadores de la liga de su cohorte y posición que cumplen la regla en esa temporada '
+            '<b>o en la anterior</b> (26/27 + 25/26; cada jugador una sola vez, con su dato más reciente), para que los grupos no sean diminutos. '
+            'Si aun así el grupo tiene menos de 5 jugadores (pasa con porteros jóvenes), se compara con todas las edades de su posición.<br>'
+            '· Los empates suben: si dos comparten el mejor ELO, los dos sacan 100.<br>'
+            '<span class="tr-muted">Los que no cumplen la regla también tienen nota (medida frente a los que sí), marcados con «no cuenta». '
+            '⚠️ = grupo de referencia de menos de 5 jugadores (sobre todo porteros en PV TEAM): el percentil se apoya en muy pocos y puede saltar mucho.</span>',
+            '<br><b>ELO 50 rule (active): who players are compared with.</b> Only players who play count as reference: '
+            '<b>everyone with ELO ≥ 50</b>, played or not (so new signings who have not debuted and injured players count), '
+            'and players with <b>ELO &lt; 50 only if they have played at least 1 minute</b> that season. '
+            'This way academy players who do not play neither inflate nor sink the others\' scores.<br>'
+            '· <b>PV TEAM</b>: against his club team-mates in the same position that season who meet the rule.<br>'
+            '· <b>PV LEAGUE</b>: against league players of his cohort and position who meet the rule that season '
+            '<b>or the previous one</b> (26/27 + 25/26; each player once, with his latest data), so groups are not tiny. '
+            'If the group still has fewer than 5 players (young goalkeepers), he is compared with all ages in his position.<br>'
+            '· Ties go up: if two share the best ELO, both score 100.<br>'
+            '<span class="tr-muted">Players who do not meet the rule still get a score (measured against those who do), marked «not counted». '
+            '⚠️ = reference group of fewer than 5 players (mostly goalkeepers in PV TEAM): the percentile rests on very few and can jump a lot.</span>')
+          if reference == 'minutos' else '') + '</div>')
 
 
-def pv_table(df):
+def pv_table(df, reference='todos'):
     """Player table for one club and season."""
-    def pill(v):
+    def pill(v, n=None):
         if v != v:
             return '–'
         bg = '#1E8E5A' if v >= 75 else YELLOW if v >= 50 else '#EEF0F3'
         fg = '#fff' if v >= 75 else INK
-        return f'<span class="tr-pill" style="background:{bg};color:{fg}">{v:.0f}</span>'
+        warn = (f' <span title="{t("Grupo de referencia", "Reference group")}: {n:.0f}">⚠️</span>'
+                if reference == 'minutos' and n is not None and n == n and n < 5 else '')
+        return f'<span class="tr-pill" style="background:{bg};color:{fg}">{v:.0f}</span>{warn}'
+
+    def mins(r):
+        m = f"{r.minutes:.0f}" if r.minutes > 0 else f'<span class=tr-muted>{t("sin minutos", "no minutes")}</span>'
+        if reference == 'minutos' and not r.referencia:
+            m += f' <span class="tr-muted" title="{t("No cumple la regla ELO 50: no sirve de referencia", "Does not meet the ELO 50 rule: not used as reference")}">· {t("no cuenta", "not counted")}</span>'
+        return m
 
     def trend(v, unit=''):
         if v != v or v is None:
@@ -1191,10 +1222,10 @@ def pv_table(df):
         return f'<span class="{cls}">{v:+.0f}{unit}</span>' if unit == '%' else f'<span class="{cls}">{v:+.1f}{unit}</span>'
     body = ''.join(
         f'<tr><td></td><td style="text-align:left"><b>{esc(r.player)}</b>{" <span title=\'Fichaje de invierno: datos de su llegada\'>❄️</span>" if getattr(r, "winter", False) else ""}{" <span class=tr-muted>◌</span>" if r.incompleto else ""}</td>'
-        f'<td>{r.pos}</td><td class="opt">{esc(r.cohort or "–")}</td><td class="opt">{f"{r.minutes:.0f}" if r.minutes > 0 else "<span class=tr-muted>sin minutos</span>"}</td>'
+        f'<td>{r.pos}</td><td class="opt">{esc(r.cohort or "–")}</td><td class="opt">{mins(r)}</td>'
         f'<td>{"–" if r.elo != r.elo else f"{r.elo:.0f}"}</td><td class="opt">{trend(r.elo_trend, "%")}</td>'
         f'<td>{"–" if r.value != r.value else f"{r.value/1e6:.1f}"}</td><td class="opt">{trend(r.value_trend, "%")}</td>'
-        f'<td>{pill(r.pv_league)}</td><td>{pill(r.pv_team)}</td><td>{pill(r.pv_avg)}</td></tr>'
+        f'<td>{pill(r.pv_league, r.n_league)}</td><td>{pill(r.pv_team, r.n_team)}</td><td>{pill(r.pv_avg)}</td></tr>'
         for r in df.itertuples())
     md('<div class="tr" style="overflow-x:auto"><table class="tr-table"><tr><th></th><th>Jugador</th><th>Pos.</th><th class="opt">Cohorte</th><th class="opt">Min.</th>'
        '<th>ELO</th><th class="opt" title="% de cambio en los últimos 3 años">Tend. ELO</th><th>Valor M€</th><th class="opt" title="% de cambio en los últimos 3 años">Tend. valor</th>'
@@ -1231,3 +1262,145 @@ def pv_reference_table(pv, reference):
        + ''.join(rows) + '</table>'
        f'<div class="tr-muted">Referencia: {esc(reference.get("source", ""))}. ELO, valor y tendencias son nuestros datos de entrada (BeSoccer). '
        '✅ ±2 · ≈ ±4 · ⚠️ más de 4 puntos. ❄️ fichaje de invierno.</div></div>')
+
+
+# ---------------------------------------------------------------- squads tab: club strength map + signings vs compared players
+
+def squad_strength_table(pv, season):
+    """Per club and season: elite players (PV LEAGUE in the league's top 25%) and squad level (mean PV LEAGUE).
+
+    Only reference players count (see squad_quality.in_reference). Rank among all clubs of the season.
+    """
+    d = pv[(pv.season == season) & pv.referencia].dropna(subset=['pv_league'])
+    if d.empty:
+        return pd.DataFrame(), None
+    cut = d.pv_league.quantile(.75)
+    g = d.groupby('id').agg(n=('player', 'size'), elite=('pv_league', lambda v: int((v >= cut).sum())), level=('pv_league', 'mean'))
+    g['share'] = g.elite/g.n*100
+    g['rank'] = g.level.rank(ascending=False, method='min').astype(int)
+    return g, cut
+
+
+def squad_strength_chart(root, pv, squads_all, prev, last, ids=SQ_FOCUS):
+    """Scatter: elite players (across) vs squad level (up), grey dot = previous season, crest = this season."""
+    A, _ = squad_strength_table(pv, prev)
+    B, cut = squad_strength_table(pv, last)
+    ids = [i for i in ids if i in A.index and i in B.index and i in squads_all]
+    if not ids:
+        st.info(t('Sin datos para comparar las dos temporadas.', 'No data to compare both seasons.')); return
+    am, bm = A.level.mean(), B.level.mean()
+    sdx = pd.concat([A.share, B.share]).std() or 1; sdy = pd.concat([A.level, B.level]).std() or 1
+    W, H, L, R, T, Bm = 900, 600, 100, 40, 30, 92
+    xs = [v for i in ids for v in (A.share[i], B.share[i])]; ys = [v for i in ids for v in (A.level[i], B.level[i])]
+    X0, X1 = 10*math.floor(min(xs + [25])/10), 10*math.ceil(max(xs)/10)
+    Y0, Y1 = 5*math.floor(min(ys)/5), 5*math.ceil(max(ys)/5)
+    sx = lambda v: L + (v - X0)/(X1 - X0)*(W - L - R)
+    sy = lambda v: T + (Y1 - v)/(Y1 - Y0)*(H - T - Bm)
+    px = float(pd.Series([B.share[i] for i in ids]).quantile(.6)); py = float(pd.Series([B.level[i] for i in ids]).quantile(.6))
+    s = [f'<rect x="{sx(px):.1f}" y="{sy(Y1):.1f}" width="{sx(X1)-sx(px):.1f}" height="{sy(py)-sy(Y1):.1f}" fill="#1E8E5A" opacity=".14"/>',
+         f'<text x="{sx(X1)-10:.1f}" y="{sy(Y1)+22:.1f}" text-anchor="end" fill="#1E8E5A" font-size="13" font-weight="700" letter-spacing="1">'
+         f'{t("PLANTILLAS DE CAMPEÓN", "TITLE-CONTENDER SQUADS")}</text>']
+    for v in range(X0, X1 + 1, 10):
+        s.append(f'<line x1="{sx(v):.1f}" x2="{sx(v):.1f}" y1="{sy(Y1)}" y2="{sy(Y0)}" stroke="#E6E8EC"/>'
+                 f'<text x="{sx(v):.1f}" y="{sy(Y0)+20}" text-anchor="middle" fill="#5B6576" font-size="12">{v}%</text>')
+    for v in range(Y0, Y1 + 1, 5):
+        s.append(f'<line x1="{sx(X0)}" x2="{sx(X1)}" y1="{sy(v):.1f}" y2="{sy(v):.1f}" stroke="#E6E8EC"/>'
+                 f'<text x="{sx(X0)-10}" y="{sy(v)+4:.1f}" text-anchor="end" fill="#5B6576" font-size="12">{v}</text>')
+    s.append(f'<line x1="{sx(25):.1f}" x2="{sx(25):.1f}" y1="{sy(Y1)}" y2="{sy(Y0)}" stroke="#8B97A8" stroke-dasharray="5 4"/>'
+             f'<text x="{sx(25)+6:.1f}" y="{sy(Y0)-8:.1f}" fill="#5B6576" font-size="11">{t("Media de la liga: 25%", "League average: 25%")}</text>')
+    moves = {}
+    for i in ids:
+        moves[i] = (B.share[i] - A.share[i])/sdx + ((B.level[i] - bm) - (A.level[i] - am))/sdy
+        col = '#1E8E5A' if moves[i] > 0 else '#D64545'
+        s.append(f'<line x1="{sx(A.share[i]):.1f}" y1="{sy(A.level[i]):.1f}" x2="{sx(B.share[i]):.1f}" y2="{sy(B.level[i]):.1f}" stroke="{col}" stroke-width="3" opacity=".85"/>'
+                 f'<circle cx="{sx(A.share[i]):.1f}" cy="{sy(A.level[i]):.1f}" r="7" fill="#9AA3B2" stroke="#fff" stroke-width="2"/>')
+    for i in ids:
+        x, y = sx(B.share[i]), sy(B.level[i]); src = crest_src(root, squads_all[i])
+        img = f'<image href="{esc(src)}" x="{x-15:.1f}" y="{y-15:.1f}" width="30" height="30"/>' if src else ''
+        s.append(f'<g><title>{esc(name(squads_all[i]))} {esc(last)}: {B.elite[i]}/{B.n[i]} · {B.level[i]:.1f}</title>'
+                 f'<circle cx="{x:.1f}" cy="{y:.1f}" r="19" fill="#fff" stroke="#E6E8EC"/>{img}'
+                 f'<text x="{x:.1f}" y="{y+34:.1f}" text-anchor="middle" fill="{INK}" font-size="12" font-weight="700" '
+                 f'paint-order="stroke" stroke="#fff" stroke-width="3">{esc(name(squads_all[i]))}</text></g>')
+    s.append(f'<text x="{(sx(X0)+sx(X1))/2:.1f}" y="{H-38}" text-anchor="middle" fill="{INK}" font-size="14" font-weight="700" letter-spacing="1">'
+             f'{t("¿CUÁNTAS ESTRELLAS? →", "HOW MANY STARS? →")}</text>'
+             f'<text x="{(sx(X0)+sx(X1))/2:.1f}" y="{H-18}" text-anchor="middle" fill="#5B6576" font-size="12">'
+             f'{t("% de la plantilla entre el 25% mejor de la liga", "Share of players among the league’s best")}</text>')
+    cy = (sy(Y0) + sy(Y1))/2
+    s.append(f'<text transform="translate(22,{cy:.1f}) rotate(-90)" text-anchor="middle" fill="{INK}" font-size="14" font-weight="700" letter-spacing="1">'
+             f'{t("↑ ¿QUÉ NIVEL GLOBAL?", "↑ HOW GOOD OVERALL?")}</text>'
+             f'<text transform="translate(42,{cy:.1f}) rotate(-90)" text-anchor="middle" fill="#5B6576" font-size="12">'
+             f'{t("Calidad media de la plantilla", "Average player quality")}</text>')
+    svg = f'<svg viewBox="0 0 {W} {H}" style="width:100%;height:auto;display:block" role="img">{"".join(s)}</svg>'
+    legend = (f'<div class="tr-muted" style="display:flex;gap:18px;flex-wrap:wrap;margin:6px 0">'
+              f'<span>● <span style="color:#9AA3B2">{t("temporada pasada", "last season")} ({esc(prev[2:])})</span></span>'
+              f'<span style="color:#1E8E5A">● {t("esta temporada (escudo) · más fuerte que el año pasado", "this season (crest) · stronger than last season")}</span>'
+              f'<span style="color:#D64545">● {t("más débil que el año pasado", "weaker than last season")}</span></div>')
+    rows = ''.join(
+        f'<tr><td><div class="tr-team">{crest(root, squads_all[i], 24)}<span>{esc(name(squads_all[i]))}</span></div></td>'
+        f'<td>{A.elite[i]}/{A.n[i]} ({A.share[i]:.0f}%)</td><td>{A.level[i]:.1f} <span class="tr-muted">{A["rank"][i]}º</span></td>'
+        f'<td>{B.elite[i]}/{B.n[i]} ({B.share[i]:.0f}%)</td><td><b>{B.level[i]:.1f}</b> <span class="tr-muted">{B["rank"][i]}º</span></td>'
+        f'<td class="{"tr-up" if moves[i] > 0 else "tr-down"}">{"▲" if moves[i] > 0 else "▼"}</td></tr>'
+        for i in sorted(ids, key=lambda i: B['rank'][i]))
+    p_, l_ = esc(prev[2:]), esc(last[2:])
+    md(f'<div class="tr">{legend}{svg}<div style="overflow-x:auto"><table class="tr-table"><tr><th style="text-align:left">{t("Club", "Club")}</th>'
+       f'<th>{t("Estrellas", "Elite players")} {p_}</th><th>{t("Nivel", "Squad level")} {p_}</th><th>{t("Estrellas", "Elite players")} {l_}</th>'
+       f'<th>{t("Nivel", "Squad level")} {l_}</th><th></th></tr>{rows}</table></div>'
+       f'<div class="tr-muted" style="margin-top:8px">' + t(
+           f'<b>Estrellas</b>: jugadores con PV LEAGUE en el 25% mejor de la liga (corte {cut:.1f} en {l_}). <b>Nivel</b>: PV LEAGUE medio de la plantilla. '
+           'Cuentan los mismos jugadores que en el PLAYER VALUE (regla ELO 50). Se usa PV LEAGUE y no PV AVG porque el PV TEAM compara con los propios '
+           'compañeros y penaliza a los buenos jugadores de las plantillas muy fuertes. Color de la línea: suma de los dos ejes, con el nivel medido frente '
+           'a la media de la liga de cada temporada. Puesto entre los clubes de cada temporada. Zona verde: por encima del P60 de estos clubes en los dos ejes.',
+           f'<b>Elite players</b>: PV LEAGUE among the league’s top 25% (cut-off {cut:.1f} in {l_}). <b>Squad level</b>: average PV LEAGUE of the squad. '
+           'Same players as in the PLAYER VALUE (ELO 50 rule). PV LEAGUE is used instead of PV AVG because PV TEAM compares players with their own '
+           'team-mates and penalises good players in very strong squads. Line colour: both axes combined, with the level measured against each '
+           'season’s league average. Rank among the clubs of each season. Green area: above the 60th percentile of these clubs on both axes.')
+       + '</div></div>')
+
+
+def _player_photo(pid):
+    return f'https://cdn.resfu.com/img_data/players/medium/{pid}.jpg?size=120x&lossy=1'
+
+
+def signing_cards(root, pv, wasl_squad, pairs, season):
+    """Each signing next to the player he is compared with: PV AVG in bold, PV LEAGUE below, difference in the middle."""
+    def get(pid, s):
+        r = pv[(pv.player_id == str(pid)) & (pv.season == s) & (pv.id == WASL)]
+        return r.iloc[0] if len(r) else None
+
+    def side(r, s, tag, right):
+        nat = (r.get('nat') or '').lower()
+        flag = f'<img src="https://flagcdn.com/w40/{esc(nat)}.png" alt="" style="width:22px;height:15px;object-fit:cover;border-radius:2px">' if nat else ''
+        note = '' if r.referencia else f'<span style="display:block;color:#D64545">{t("no cuenta · ELO < 50 sin minutos", "does not count · ELO < 50, no minutes")}</span>'
+        txt = (f'<div style="text-align:{"right" if right else "left"}"><div style="font-weight:700;font-size:16px">{esc(r.player)}</div>'
+               f'<div class="tr-muted" style="display:flex;gap:6px;align-items:center;justify-content:{"flex-end" if right else "flex-start"}">{flag}{esc(tag)}</div>'
+               f'<div style="font-weight:800;font-size:26px"><span style="font-size:13px;letter-spacing:.06em;background:{YELLOW};color:{INK};'
+               f'border-radius:6px;padding:2px 7px;vertical-align:middle">PV AVG</span> {r.pv_avg:.1f}</div>'
+               f'<div class="tr-muted" style="font-size:12px">PV LEAGUE {r.pv_league:.1f}{note}</div></div>')
+        photo = (f'<img src="{_player_photo(r.player_id)}" alt="" style="width:60px;height:60px;border-radius:50%;object-fit:cover;'
+                 f'background:#EEF0F3;flex-shrink:0">')
+        return (f'<div style="display:flex;align-items:center;gap:12px;justify-content:{"flex-end" if right else "flex-start"}">'
+                + (txt + photo if right else photo + txt) + '</div>')
+    cards = []
+    for a, b, sb in pairs:
+        L, R = get(a, season), get(b, sb)
+        if L is None or R is None:
+            continue
+        cards.append((L, R, sb, L.pv_avg - R.pv_avg, L.pv_league - R.pv_league))
+    if not cards:
+        st.info(t('Sin fichajes para comparar.', 'No signings to compare.')); return
+    cards.sort(key=lambda c: -c[3])
+    body = ''.join(
+        f'<div style="display:grid;grid-template-columns:44px minmax(0,1fr) 130px minmax(0,1fr);align-items:center;gap:10px;background:#fff;'
+        f'border:1px solid #E6E8EC;border-radius:14px;padding:12px 16px;margin-bottom:10px">{crest(root, wasl_squad, 40)}'
+        f'{side(L, season, t(f"fichaje {season[2:]}", f"{season[2:]} signing"), False)}'
+        f'<div style="text-align:center"><div style="font-weight:800;font-size:28px;color:{"#1E8E5A" if d >= 0 else "#D64545"}">{d:+.1f}</div>'
+        f'<div style="font-size:11px;letter-spacing:.12em"><b>PV AVG</b> DIFF</div><div class="tr-muted" style="font-size:12px">PV LEAGUE {d2:+.1f}</div></div>'
+        f'{side(R, sb, sb[2:], True)}</div>'
+        for L, R, sb, d, d2 in cards)
+    md(f'<div class="tr" style="overflow-x:auto"><div style="min-width:640px">{body}</div>'
+       '<div class="tr-muted" style="margin-top:6px">' + t(
+           '<b>PV AVG</b> (en negrita) = media de PV LEAGUE (frente a la liga, misma edad y posición) y PV TEAM (frente a sus compañeros de posición). '
+           'Debajo, el PV LEAGUE. Diferencia = fichaje menos el jugador con el que se compara (parejas definidas por el club). Fotos: BeSoccer.',
+           '<b>PV AVG</b> (bold) = average of PV LEAGUE (against the league, same age and position) and PV TEAM (against his team-mates in that position). '
+           'Below, PV LEAGUE. Difference = signing minus the compared player (pairs chosen by the club). Photos: BeSoccer.')
+       + '</div></div>')

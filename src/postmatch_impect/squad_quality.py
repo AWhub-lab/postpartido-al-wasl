@@ -205,7 +205,8 @@ def _season_trend(points, y, now):
 
 
 def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, profiles: dict | None = None,
-                 arrivals: dict | None = None, current_season='2026/27', mode='general', minutes: dict | None = None):
+                 arrivals: dict | None = None, current_season='2026/27', mode='general', minutes: dict | None = None,
+                 reference='todos'):
     """PLAYER VALUE AVG per player and season.
 
     PV = 0.40·pct(ELO) + 0.10·pct(ELO trend) + 0.40·pct(value) + 0.10·pct(value trend),
@@ -218,7 +219,16 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
     mode='media': a past season Y/Y+1 uses the mean of the chart points of Y and Y+1 (the whole
     season), and the trend compares that season average with the one two seasons earlier
     (25/26 vs 23/24). The current season keeps today's profile values and winter signings keep
-    the data of their arrival year, as in the general model.
+    the data of their arrival year (chart point Y+1), as in the general model.
+
+    MANUAL_VALUES / EXCLUDED_PLAYERS: the few corrections agreed with the club (BeSoccer errors).
+
+    reference='minutos': each player is ranked only against the reference players (see
+    `in_reference`): PV TEAM against his club and position that season; PV LEAGUE against his
+    cohort and position in that season and the previous one (each player once, latest season first;
+    fewer than MIN_GROUP players -> all cohorts of that position).
+    Ties go up (a shared top value scores 100). Players outside the reference still get a PV,
+    measured against those inside. `n_league` / `n_team` = size of the reference group.
     """
     import pandas as pd
     rows = list(csv.DictReader(open(seasons_csv, newline='', encoding='utf-8')))
@@ -246,6 +256,8 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
     out = []
     for r in rows:
         y = int(r['season'][:4]); pid = r['player_id']
+        if pid in EXCLUDED_PLAYERS:
+            continue
         s_elo, s_val, birth = series.get(pid, ({}, {}, ''))
         prof = profiles.get(pid)
         if prof:   # fresh BeSoccer profile chart wins over the older series
@@ -254,9 +266,9 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
         winter = is_winter_arrival(arrivals, r['season'], sid, r['player']) if sid else False
         elo, value, source, ty = hist_elo.get(pid, {}).get(y), hist_val.get(pid, {}).get(y), 'temporada', y
         # "Dato del momento": what the player was worth while at the club.
-        if prof and (r['season'] == current_season or (winter and y + 1 == now_year)):
+        if prof and r['season'] == current_season:
             elo = prof['elo_current'] or elo; value = prof['market_current_eur'] or value
-            source, ty = ('ficha actual' if r['season'] == current_season else 'llegada en invierno'), now_year
+            source, ty = 'ficha actual', now_year
         elif winter and prof:
             elo = prof['elo'].get(y + 1, elo); value = prof['value'].get(y + 1, value)
             source, ty = 'llegada en invierno', y + 1
@@ -268,12 +280,17 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
             # the same figure the BeSoccer app shows. The squad listing is only a fallback.
             elo = prof['elo'].get(y, elo); value = prof['value'].get(y, value)
             source = f'gráfica {y}'
+        manual = MANUAL_VALUES.get((r['season'], pid))
+        if manual:
+            elo, value = manual.get('elo', elo), manual.get('value', value)
+            source = 'manual'
         try:
             by = int(birth[:4]) if birth[:4].isdigit() else y - int(r['age'])
         except (TypeError, ValueError):
             by = None
         out.append({'season': r['season'], 'year': y, 'team': r['team'], 'id': sid,
-                    'player_id': pid, 'player': r['player'], 'pos': POSITIONS.get(r.get('position')), 'cohort': _cohort(by),
+                    'player_id': pid, 'player': r['player'], 'nat': r.get('nationality') or '', 'pos': POSITIONS.get(r.get('position')),
+                    'cohort': _cohort(by),
                     'minutes': max([_num(r.get('minutes')) or 0] + [m for t, m in (minutes or {}).get((r['season'], sid), [])
                                                                      if same_player(r['player'], t)]),
                     'elo': elo, 'value': value, 'source': source, 'winter': winter,
@@ -283,9 +300,14 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
     no_pos = df.pos.isna()          # BeSoccer without position: listed, but no PV (no peer group)
     df['pos'] = df.pos.fillna('?')
     parts = list(PV_WEIGHTS)
+    df['referencia'] = in_reference(df)
     for scope, keys in (('league', ['season', 'cohort', 'pos']), ('team', ['season', 'team', 'pos'])):
-        g = df.groupby(keys, dropna=False)
-        pct = {p: g[p].rank(pct=True)*100 for p in parts}
+        if reference == 'minutos':
+            pct, df[f'n_{scope}'] = _reference_pct(df, scope)
+        else:
+            g = df.groupby(keys, dropna=False)
+            pct = {p: g[p].rank(pct=True)*100 for p in parts}
+            df[f'n_{scope}'] = g.player.transform('size')
         num = sum(pct[p].fillna(0)*w for p, w in PV_WEIGHTS.items())
         den = sum(pct[p].notna()*w for p, w in PV_WEIGHTS.items())
         df[f'pv_{scope}'] = (num/den.replace(0, np.nan)).round(1)
@@ -293,6 +315,55 @@ def player_value(seasons_csv: Path, series_csv: Path | None = None, window=3, pr
     df['pv_avg'] = ((df.pv_league + df.pv_team)/2).round(1)
     df['incompleto'] = df[parts].isna().any(axis=1)
     return df
+
+
+REF_ELO = 50          # reference rule: ELO >= 50 always counts (played or not), ELO < 50 needs 1 minute
+REF_MIN_HIGH, REF_MIN_LOW = 0, 1
+MIN_GROUP = 5         # PV LEAGUE: smaller reference groups (young goalkeepers) use all cohorts of that position
+
+# Corrections agreed with the club (BeSoccer errors), shown in the app.
+MANUAL_VALUES = {('2025/26', '133874'): {'value': 4_500_000}}   # Miguel Borja: value on arrival at Al Wasl
+EXCLUDED_PLAYERS = {'3140193'}                                    # Elian Mateo Irala: profile value inconsistent with his chart
+
+
+def in_reference(df):
+    """Players who count as reference in the 'minutos' comparison."""
+    m = df.minutes.fillna(0)
+    return ((df.elo >= REF_ELO) & (m >= REF_MIN_HIGH)) | ((df.elo < REF_ELO) & (m >= REF_MIN_LOW))
+
+
+def _reference_pct(df, scope):
+    """Percentiles (ties up) of every player against the reference players of his group."""
+    import pandas as pd
+    pct = {p: pd.Series(np.nan, index=df.index) for p in PV_WEIGHTS}
+    size = pd.Series(0, index=df.index)
+    seasons = sorted(df.season.unique())
+    ref_all = df[df.referencia & (df.pos != '?')]
+    key = ref_all.player_id.astype(str).where(ref_all.player_id.notna(), ref_all.player)
+    for i, season in enumerate(seasons):
+        cur = df[df.season == season]
+        if scope == 'team':
+            ref, keys = ref_all[ref_all.season == season], ['team', 'pos']
+        else:   # this season and the previous one, each player once (latest first)
+            window = seasons[max(0, i - 1):i + 1]
+            ref = ref_all[ref_all.season.isin(window)].assign(_k=key).sort_values('season', ascending=False).drop_duplicates('_k')
+            keys = ['cohort', 'pos']
+        groups = {k: g for k, g in ref.groupby(keys, dropna=False)}
+        for k, g in cur.groupby(keys, dropna=False):
+            r = groups.get(k)
+            if k[-1] == '?':
+                continue
+            if scope == 'league' and (r is None or len(r) < MIN_GROUP):
+                r = ref[ref.pos == k[-1]]
+            if r is None or r.empty:
+                continue
+            size[g.index] = len(r)
+            for p in PV_WEIGHTS:
+                vals = np.sort(r[p].dropna().to_numpy())
+                if len(vals):
+                    x = g[p].to_numpy(dtype=float)
+                    pct[p][g.index] = np.where(np.isnan(x), np.nan, np.searchsorted(vals, x, side='right')/len(vals)*100)
+    return pct, size
 
 
 # ---------------------------------------------------------------- point-in-time ELO / value ("dato del momento")

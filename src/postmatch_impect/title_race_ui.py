@@ -22,7 +22,7 @@ from .title_race_views import (
     isr_ranking, isr_chart, isr_champion_table, isr_scatter, model_comparison, season_window, isr_jumps, isr_alert,
     scenario_cards, scenario_table, weights_chart, match_explainer, market_table, market_scatter,
     value_method, value_breakdown, value_gap_explainer, squad_evolution_table, squad_evolution_chart, squad_cross,
-    SQ_FOCUS, sq_lines, pv_method, pv_table, pv_reference_table,
+    SQ_FOCUS, sq_lines, pv_method, pv_table, pv_reference_table, squad_strength_chart, signing_cards,
 )
 from .market import refresh_market_tm, squad_breakdown
 from .i18n import t
@@ -597,8 +597,8 @@ def _squads_tab(root, datasets, current, squads, ids):
         st.info('Falta data/besoccer_uae/uae_league_squads_5_seasons.csv (plantillas por temporada de BeSoccer).')
         return
     c_mode, c_played = st.columns([1, 1])
-    model = c_mode.segmented_control('Modelo', ['Modelo general', 'Modelo media'], default='Modelo general', key='sq_model',
-                                     help='General: temporada pasada Y/Y+1 = valor de la gráfica del año Y. Media: media de los años Y e Y+1.') or 'Modelo general'
+    model = c_mode.segmented_control('Modelo', ['Modelo general', 'Modelo media'], default='Modelo media', key='sq_model',
+                                     help='General: temporada pasada Y/Y+1 = valor de la gráfica del año Y. Media: media de los años Y e Y+1.') or 'Modelo media'
     mode = 'media' if model == 'Modelo media' else 'general'
     played = c_played.segmented_control('Jugadores', ['Con minutos esa temporada', 'Toda la plantilla'], default='Con minutos esa temporada',
                                         key='sq_played') or 'Con minutos esa temporada'
@@ -610,7 +610,7 @@ def _squads_tab(root, datasets, current, squads, ids):
         'la temporada completa; si falta un año, se usa el que haya. Tendencia: la temporada frente a la media de <b>dos temporadas antes</b> '
         '(25/26 frente a 23/24; 26/27 frente a 24/25).') +
         '<br><span class="tr-muted">En los dos modelos: la temporada en curso (26/27) usa el ELO y el valor de hoy de la ficha (aún no existe 2027) y los '
-        'fichajes de invierno ❄️ usan los datos del año en que llegaron (Borja 25/26: 4,47 M€), no la media con su club anterior.</span></div>')
+        'fichajes de invierno ❄️ usan los datos del año en que llegaron (gráfica de ese año; Borja 25/26: 4,5 M€, corregido a mano), no la media con su club anterior.</span></div>')
     rows = _season_squads(str(path), path.stat().st_mtime, played.startswith('Con'), mode)
     squads_all = {}
     for d in sorted(datasets, key=lambda d: d['iteration']['season']):
@@ -630,7 +630,7 @@ def _squads_tab(root, datasets, current, squads, ids):
        'Se usa el <b>ELO de jugador de BeSoccer</b> (no el ELO de equipo) y el <b>valor de mercado de BeSoccer</b> de esa temporada.<br>'
        '<span class="tr-muted"><b>Dato del momento</b> (los mismos datos que el PLAYER VALUE): en 26/27, el ELO y el valor de la ficha de BeSoccer '
        'de hoy de cada jugador, para todos los equipos (p. ej. Horkaš 70, Taremi 79). Los fichajes de invierno cuentan con sus datos de cuando llegaron '
-       '(p. ej. Borja 25/26: 4,5 M€ y ELO 72, no los 7,7 M€ y 75 de antes de llegar). El resto, el listado de plantilla de cada temporada. '
+       '(p. ej. Borja 25/26: 4,5 M€ y ELO 71, no los 7,7 M€ y 75 de antes de llegar). El resto, el listado de plantilla de cada temporada. '
        'Valores vacíos en BeSoccer se dejan vacíos (no se inventan).</span></div>')
     if w_now.get('elo_p75') and w_first.get('elo_p75'):
         kpi_tiles([
@@ -655,11 +655,15 @@ def _squads_tab(root, datasets, current, squads, ids):
     squad_cross(root, rows, squads_all, season, SQ_FOCUS)
 
     # ---------------------------------------------------------------- PLAYER VALUE AVG
-    pv = _player_value(str(path), path.stat().st_mtime, str(_series_csv() or ''), mode)
-    pv = pv[pv.id.isin(squads_all.keys())]
     section('Jugadores', 'PLAYER VALUE AVG', 'Cuánto vale cada jugador frente a sus pares de la liga y de su club, temporada a temporada.')
-    pv_method(float(pv.incompleto.mean()), mode)
-    played_pv = pv[pv.minutes > 0]
+    reference = st.segmented_control(
+        t('Comparar con', 'Compare with'), ['minutos', 'todos'], default='minutos', key='pv_reference',
+        format_func=lambda k: t('Regla ELO 50 (recomendada)', 'ELO 50 rule (recommended)') if k == 'minutos'
+        else t('Toda la plantilla (método original)', 'Whole squad (original method)')) or 'minutos'
+    pv = _player_value(str(path), path.stat().st_mtime, str(_series_csv() or ''), mode, reference)
+    pv = pv[pv.id.isin(squads_all.keys())]
+    pv_method(float(pv.incompleto.mean()), mode, reference)
+    played_pv = pv[pv.referencia] if reference == 'minutos' else pv[pv.minutes > 0]
     team_avg = [{'season': s_, 'id': i, 'v': g.pv_league.mean()} for (s_, i), g in played_pv.groupby(['season', 'id'])]
     section('Nivel de plantilla', 'PV LEAGUE medio por equipo',
             'Nota media (0–100) de los jugadores que han jugado, comparados con los de su misma edad y posición en toda la liga.')
@@ -676,12 +680,38 @@ def _squads_tab(root, datasets, current, squads, ids):
     view = pv[(pv.season == pv_season) & (pv.id == pv_team_id)]
     if only:
         view = view[view.minutes > 0]
-    pv_table(view.sort_values('pv_avg', ascending=False))
+    pv_table(view.sort_values('pv_avg', ascending=False), reference)
     ref = _read_json(path.parent/'pv_reference_colleague.json')
     if ref:
         section('Control de calidad', 'Nuestro PV frente al informe del compañero',
-                f'Mismo método, calculado de forma independiente ({model}). Su informe sigue el modelo general.')
+                f'Mismo método, calculado de forma independiente ({model}). Su informe sigue el modelo general.'
+                + (t(' Ojo: su informe compara con toda la plantilla; con la regla ELO 50 las diferencias son mayores.',
+                     ' Note: his report compares with the whole squad; with the ELO 50 rule the differences are larger.')
+                   if reference == 'minutos' else ''))
         pv_reference_table(pv, ref)
+
+    # ---------------------------------------------------------------- club strength map + signings
+    if len(seasons) >= 2:
+        section(t('Comparativa de clubes', 'Club comparison'), t('¿Quién tiene plantilla para ganar la liga?', 'Who has the squad to win the league?'),
+                t('Cuántas estrellas tiene cada plantilla y qué nivel global, la temporada pasada (punto gris) y esta (escudo).',
+                  'How many stars each squad has and how good it is overall, last season (grey dot) and this season (crest).'))
+        squad_strength_chart(root, pv, squads_all, seasons[-2], last)
+    if WASL in squads_all:
+        section(t('Fichajes', 'Signings'), t('¿Han subido el nivel los fichajes?', 'Did the signings raise the level?'),
+                t('Cada fichaje de Al Wasl frente al jugador con el que lo compara el club.', 'Each Al Wasl signing against the player the club compares him with.'))
+        signing_cards(root, pv, squads_all[WASL], SIGNING_PAIRS, last)
+
+
+# Signing -> compared player (BeSoccer ids) and the season of the compared player, as chosen by the club (Álvaro López, 06/10/2026).
+SIGNING_PAIRS = [
+    ('280983', '820298', '2025/26'),    # S. Ivković vs Yousif Almheiri
+    ('3667234', '3386659', '2026/27'),  # R. Popoola vs Mallek Janeer
+    ('550869', '447544', '2026/27'),    # C. Puertas vs Siaka Sidibe
+    ('275712', '133874', '2025/26'),    # M. Taremi vs Miguel Borja
+    ('296570', '3229059', '2026/27'),   # Dinko Horkaš vs Mohamed Ali
+    ('769227', '195292', '2025/26'),    # Yahia Nader vs Renato Tapia
+    ('833664', '3222724', '2026/27'),   # Leandro Leite vs Brahian Palacios
+]
 
 
 def _series_csv():
@@ -694,13 +724,13 @@ def _series_csv():
 
 
 @st.cache_data(show_spinner=False)
-def _player_value(path: str, mtime: float, series: str, mode: str = 'general'):
+def _player_value(path: str, mtime: float, series: str, mode: str = 'general', reference: str = 'todos'):
     """PV with fresh BeSoccer profiles (data/besoccer_uae/player_charts) and IMPECT winter-arrival dates."""
     path = Path(path)
     profiles = load_profiles(path.parent/'player_charts')
     arrivals = winter_arrivals(path.parents[1]/'title_race')
     return player_value(path, None if profiles else (Path(series) if series else None), profiles=profiles, arrivals=arrivals, mode=mode,
-                        minutes=impect_minutes(path.parents[1]/'title_race'))
+                        minutes=impect_minutes(path.parents[1]/'title_race'), reference=reference)
 
 
 def _pv_league_explainer(played_pv, squads_all):

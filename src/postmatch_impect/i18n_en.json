@@ -277,7 +277,6 @@
 "<b>Modelo media.</b> Temporadas pasadas: <b>media de los dos años</b> que abarca la temporada (2025 y 2026 para 25/26), para representar ": "<b>Average model.</b> Past seasons: <b>mean of the two years</b> the season spans (2025 and 2026 for 25/26), to represent ",
 "la temporada completa; si falta un año, se usa el que haya. Tendencia: la temporada frente a la media de <b>dos temporadas antes</b> ": "the full season; if one year is missing, the available one is used. Trend: the season vs the average of <b>two seasons earlier</b> ",
 "<br><span class=\"tr-muted\">En los dos modelos: la temporada en curso (26/27) usa el ELO y el valor de hoy de la ficha (aún no existe 2027) y los ": "<br><span class=\"tr-muted\">In both models: the ongoing season (26/27) uses today's ELO and value from the profile (2027 does not exist yet) and ",
-"fichajes de invierno ❄️ usan los datos del año en que llegaron (Borja 25/26: 4,47 M€), no la media con su club anterior.</span></div>": "winter signings ❄️ use the data from the year they arrived (Borja 25/26: €4.47M), not the average with their previous club.</span></div>",
 "Plantillas de la liga": "League squads",
 "º en ELO · ": "º in ELO · ",
 "º en valor": "º in value",
@@ -290,7 +289,6 @@
 "Se usa el <b>ELO de jugador de BeSoccer</b> (no el ELO de equipo) y el <b>valor de mercado de BeSoccer</b> de esa temporada.<br>": "It uses the <b>BeSoccer player ELO</b> (not the team ELO) and the <b>BeSoccer market value</b> for that season.<br>",
 "<span class=\"tr-muted\"><b>Dato del momento</b> (los mismos datos que el PLAYER VALUE): en 26/27, el ELO y el valor de la ficha de BeSoccer ": "<span class=\"tr-muted\"><b>Point-in-time data</b> (the same data as the PLAYER VALUE): in 26/27, each player's ELO and value from today's BeSoccer profile, ",
 "de hoy de cada jugador, para todos los equipos (p. ej. Horkaš 70, Taremi 79). Los fichajes de invierno cuentan con sus datos de cuando llegaron ": "for every team (e.g. Horkaš 70, Taremi 79). Winter signings count with their data when they arrived ",
-"(p. ej. Borja 25/26: 4,5 M€ y ELO 72, no los 7,7 M€ y 75 de antes de llegar). El resto, el listado de plantilla de cada temporada. ": "(e.g. Borja 25/26: €4.5M and ELO 72, not the €7.7M and 75 from before arriving). The rest, each season's squad listing. ",
 "Valores vacíos en BeSoccer se dejan vacíos (no se inventan).</span></div>": "Values missing in BeSoccer are left empty (not invented).</span></div>",
 "Valor P75 Al Wasl ": "P75 value Al Wasl ",
 "Puesto en ELO P75": "Rank in ELO P75",
@@ -559,10 +557,8 @@
 "Si falta algún dato (sin valor publicado o sin años previos para la tendencia, ": "If a piece of data is missing (no published value or no previous years for the trend, ",
 " de los casos) se calcula con ": " of cases) it is calculated with ",
 "el resto de piezas, reescalando los pesos, y se marca con ◌. Se añade la cohorte ≤1991, que el método original no tenía y agrupa al 14% de ": "the remaining pieces, rescaling the weights, and marked with ◌. The ≤1991 cohort is added; the original method did not have it and it groups 14% of ",
-"jugadores. No hay entradas manuales: todo es BeSoccer.<br>": "players. There are no manual entries: everything is BeSoccer.<br>",
 "<b>Dato del momento:</b> el ELO y el valor son los del jugador mientras está en el club. En la temporada actual, los de su ficha de BeSoccer hoy ": "<b>Point-in-time data:</b> ELO and value are the player's while he is at the club. In the current season, those from his BeSoccer profile today ",
 "(los mismos para todos los equipos). Los fichajes de invierno (❄️, primer partido después del 1 de enero según IMPECT) usan sus datos del año en que ": "(the same for every team). Winter signings (❄️, first match after 1 January according to IMPECT) use the data from the year ",
-"llegaron, no los de antes (p. ej. Borja 25/26: 4,5 M€ al llegar en 2026, no los 11 M€ de 2025).</span></div>": "they arrived, not from before (e.g. Borja 25/26: €4.5M when he arrived in 2026, not the €11M of 2025).</span></div>",
 " <span title='Fichaje de invierno: datos de su llegada'>❄️</span>": " <span title='Winter signing: data from his arrival'>❄️</span>",
 "<span class=tr-muted>sin minutos</span>": "<span class=tr-muted>no minutes</span>",
 "<div class=\"tr\" style=\"overflow-x:auto\"><table class=\"tr-table\"><tr><th></th><th>Jugador</th><th>Pos.</th><th class=\"opt\">Cohorte</th><th class=\"opt\">Min.</th>": "<div class=\"tr\" style=\"overflow-x:auto\"><table class=\"tr-table\"><tr><th></th><th>Player</th><th>Pos.</th><th class=\"opt\">Cohort</th><th class=\"opt\">Min.</th>",
@@ -692,5 +688,9 @@
 "Informe del compañero (Álvaro López)": "Colleague's report (Álvaro López)",
 "recibido el": "received on",
 " puntos del líder.": " points behind the leader.",
-" punto del líder.": " point behind the leader."
+" punto del líder.": " point behind the leader.",
+"jugadores. Todo es BeSoccer salvo dos correcciones acordadas con el club: Borja 25/26 con 4,5 M€ (su valor al llegar) e Irala excluido (su ficha da un valor que no cuadra con su gráfica).<br>": "players. Everything is BeSoccer except two corrections agreed with the club: Borja 25/26 at €4.5M (his value on arrival) and Irala excluded (his profile value does not match his chart).<br>",
+"llegaron, no los de antes (p. ej. Borja 25/26: 4,5 M€ al llegar en 2026, no los 11 M€ de 2025).</span>": "they arrived, not from before (e.g. Borja 25/26: €4.5M when he arrived in 2026, not the €11M of 2025).</span>",
+"fichajes de invierno ❄️ usan los datos del año en que llegaron (gráfica de ese año; Borja 25/26: 4,5 M€, corregido a mano), no la media con su club anterior.</span></div>": "winter signings ❄️ use the data from the year they arrived (that year's chart; Borja 25/26: €4.5M, corrected by hand), not the average with their previous club.</span></div>",
+"(p. ej. Borja 25/26: 4,5 M€ y ELO 71, no los 7,7 M€ y 75 de antes de llegar). El resto, el listado de plantilla de cada temporada. ": "(e.g. Borja 25/26: €4.5M and ELO 71, not the €7.7M and 75 from before arriving). The rest, each season's squad listing. "
 }
